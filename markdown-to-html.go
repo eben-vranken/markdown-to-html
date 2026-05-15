@@ -75,33 +75,33 @@ func generateHtml(fileLocation string) {
 func parseLine(line string) string {
 	// Headings
 	if strings.HasPrefix(line, "######") {
-		content := strings.Split(line, "######")[1]
+		content := strings.TrimPrefix(line, "######")
 		return "<h6>" + strings.TrimSpace(content) + "</h6>"
 	}
 
 	if strings.HasPrefix(line, "#####") {
-		content := strings.Split(line, "#####")[1]
+		content := strings.TrimPrefix(line, "#####")
 		return "<h5>" + strings.TrimSpace(content) + "</h5>"
 	}
 
 		if strings.HasPrefix(line, "####") {
-		content := strings.Split(line, "####")[1]
+		content := strings.TrimPrefix(line, "####")
 		return "<h4>" + strings.TrimSpace(content) + "</h4>"
 	}
 
 	if strings.HasPrefix(line, "###") {
-		content := strings.Split(line, "###")[1]
+		content := strings.TrimPrefix(line, "###")
 		return "<h3>" + strings.TrimSpace(content) + "</h3>"
 	}
 
 		if strings.HasPrefix(line, "##") {
-		content := strings.Split(line, "##")[1]
+		content := strings.TrimPrefix(line, "##")
 		return "<h2>" + strings.TrimSpace(content) + "</h2>"
 	}
 
 
 		if strings.HasPrefix(line, "#") {
-		content := strings.Split(line, "#")[1]
+		content := strings.TrimPrefix(line, "#")
 		return "<h1>" + strings.TrimSpace(content) + "</h1>"
 	}
 
