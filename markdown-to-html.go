@@ -48,11 +48,19 @@ func findFiles() []os.DirEntry {
 }
 
 func generateHtml(fileLocation string) {
-	fmt.Println("Generating file:", fileLocation)
 
 	f, err := os.Open(fileLocation)
 	r := bufio.NewReader(f)
 	handleErr(err)
+
+	outputFileLocation := strings.TrimPrefix(fileLocation, "in/")
+	outputFileFormat := strings.TrimSuffix(outputFileLocation, ".md") + ".html"
+	outputFile, err := os.Create("out/" + outputFileFormat)
+	fmt.Println("Generating file:", "out/"+outputFileFormat)
+
+	handleErr(err)
+
+	defer outputFile.Close()
 
 	inParagraph := false
 
@@ -62,11 +70,11 @@ func generateHtml(fileLocation string) {
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				if len(line) > 0 {
-					processLine(line, &inParagraph)
+					processLine(line, &inParagraph, outputFile)
 				}
 
 				if inParagraph {
-					fmt.Print("</p>")
+					fmt.Fprint(outputFile, "</p>")
 				}
 				break
 			}
@@ -74,7 +82,7 @@ func generateHtml(fileLocation string) {
 			break
 		}
 
-		processLine(line, &inParagraph)
+		processLine(line, &inParagraph, outputFile)
 	}
 }
 
@@ -113,24 +121,31 @@ func parseLine(line string) string {
 	return line
 }
 
-func processLine(line string, inParagraph *bool) {
-	if strings.TrimSpace(line) == "" {
+func processLine(line string, inParagraph *bool, outputFile *os.File) {
+	if strings.TrimSpace(line) == "---" {
 		if *inParagraph {
-			fmt.Print("</p>")
+			fmt.Fprint(outputFile, "</p>")
+			*inParagraph = false
+		}
+
+		fmt.Fprintln(outputFile, "<hr>")
+	} else if strings.TrimSpace(line) == "" {
+		if *inParagraph {
+			fmt.Fprint(outputFile, "</p>")
 			*inParagraph = false
 		}
 	} else if strings.HasPrefix(line, "#") {
 		if *inParagraph {
-			fmt.Print("</p>")
+			fmt.Fprint(outputFile, "</p>")
 			*inParagraph = false
 		}
-		fmt.Println(parseLine(line))
+		fmt.Fprintln(outputFile, parseLine(line))
 	} else {
 		if !*inParagraph {
-			fmt.Print("<p>")
+			fmt.Fprint(outputFile, "<p>")
 			*inParagraph = true
 		}
-		fmt.Print(line)
+		fmt.Fprint(outputFile, line)
 	}
 }
 
