@@ -66,6 +66,7 @@ func generateHtml(fileLocation string) {
 	inParagraph := false
 	inUnorderedList := false
 	inOrderedList := false
+	inCodeBlock := false
 
 	for {
 		line, err := r.ReadString('\n')
@@ -73,7 +74,7 @@ func generateHtml(fileLocation string) {
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				if len(line) > 0 {
-					processLine(line, &inParagraph, &inUnorderedList, &inOrderedList, outputFile)
+					processLine(line, &inParagraph, &inUnorderedList, &inOrderedList, &inCodeBlock, outputFile)
 				}
 
 				if inParagraph {
@@ -85,7 +86,7 @@ func generateHtml(fileLocation string) {
 			break
 		}
 
-		processLine(line, &inParagraph, &inUnorderedList, &inOrderedList, outputFile)
+		processLine(line, &inParagraph, &inUnorderedList, &inOrderedList, &inCodeBlock, outputFile)
 	}
 }
 
@@ -93,38 +94,55 @@ func parseLine(line string) string {
 	// Headings
 	if strings.HasPrefix(line, "######") {
 		content := strings.TrimPrefix(line, "######")
-		return "<h6>" + strings.TrimSpace(content) + "</h6>"
+		return "<h6>" + strings.TrimSpace(parseInline(content)) + "</h6>"
 	}
 
 	if strings.HasPrefix(line, "#####") {
 		content := strings.TrimPrefix(line, "#####")
-		return "<h5>" + strings.TrimSpace(content) + "</h5>"
+		return "<h5>" + strings.TrimSpace(parseInline(content)) + "</h5>"
 	}
 
 	if strings.HasPrefix(line, "####") {
 		content := strings.TrimPrefix(line, "####")
-		return "<h4>" + strings.TrimSpace(content) + "</h4>"
+		return "<h4>" + strings.TrimSpace(parseInline(content)) + "</h4>"
 	}
 
 	if strings.HasPrefix(line, "###") {
 		content := strings.TrimPrefix(line, "###")
-		return "<h3>" + strings.TrimSpace(content) + "</h3>"
+		return "<h3>" + strings.TrimSpace(parseInline(content)) + "</h3>"
 	}
 
 	if strings.HasPrefix(line, "##") {
 		content := strings.TrimPrefix(line, "##")
-		return "<h2>" + strings.TrimSpace(content) + "</h2>"
+		return "<h2>" + strings.TrimSpace(parseInline(content)) + "</h2>"
 	}
 
 	if strings.HasPrefix(line, "#") {
 		content := strings.TrimPrefix(line, "#")
-		return "<h1>" + strings.TrimSpace(content) + "</h1>"
+		return "<h1>" + strings.TrimSpace(parseInline(content)) + "</h1>"
 	}
 
-	return line
+	return parseInline(line)
 }
 
-func processLine(line string, inParagraph *bool, inUnorderedList *bool, inOrderedList *bool, outputFile *os.File) {
+func processLine(line string, inParagraph *bool, inUnorderedList *bool, inOrderedList *bool, inCodeBlock *bool, outputFile *os.File) {
+	if *inCodeBlock && !strings.HasPrefix(strings.TrimSpace(line), "```") {
+		fmt.Fprint(outputFile, line)
+		return
+	}
+
+	if strings.HasPrefix(strings.TrimSpace(line), "```") {
+		if !*inCodeBlock {
+			*inCodeBlock = true
+			fmt.Fprintln(outputFile, "<pre><code>")
+		} else {
+			*inCodeBlock = false
+			fmt.Fprintln(outputFile, "</code></pre>")
+		}
+
+		return
+	}
+
 	if strings.TrimSpace(line) == "---" {
 		if *inParagraph {
 			fmt.Fprint(outputFile, "</p>")
@@ -135,7 +153,7 @@ func processLine(line string, inParagraph *bool, inUnorderedList *bool, inOrdere
 	} else if len(strings.TrimSpace(line)) >= 2 && strings.TrimSpace(line)[0] == '>' {
 		quote := strings.TrimPrefix(strings.TrimSpace(line), ">")
 
-		fmt.Fprintln(outputFile, "<blockquote>"+strings.TrimSpace(quote)+"</blockquote>")
+		fmt.Fprintln(outputFile, "<blockquote>"+strings.TrimSpace(parseInline(quote))+"</blockquote>")
 	} else if len(strings.TrimSpace(line)) >= 2 && unicode.IsDigit(rune(strings.TrimSpace(line)[0])) && strings.TrimSpace(line)[1] == '.' {
 		if !*inOrderedList {
 			fmt.Fprintln(outputFile, "<ol>")
@@ -144,11 +162,11 @@ func processLine(line string, inParagraph *bool, inUnorderedList *bool, inOrdere
 
 		trimmedListItem := strings.Split(strings.TrimSpace(line), ".")[1]
 
-		fmt.Fprintln(outputFile, "<li>"+strings.TrimSpace(trimmedListItem)+"</li>")
+		fmt.Fprintln(outputFile, "<li>"+strings.TrimSpace(parseInline(trimmedListItem))+"</li>")
 	} else if *inOrderedList {
 		*inOrderedList = false
 		fmt.Fprintln(outputFile, "</ol>")
-		processLine(line, inParagraph, inUnorderedList, inOrderedList, outputFile)
+		processLine(line, inParagraph, inUnorderedList, inOrderedList, inCodeBlock, outputFile)
 	} else if strings.HasPrefix(strings.TrimSpace(line), "*") || strings.HasPrefix(strings.TrimSpace(line), "-") {
 		if !*inUnorderedList {
 			fmt.Fprintln(outputFile, "<ul>")
@@ -162,11 +180,11 @@ func processLine(line string, inParagraph *bool, inUnorderedList *bool, inOrdere
 			trimmedListItem = strings.TrimPrefix(strings.TrimSpace(line), "-")
 		}
 
-		fmt.Fprintln(outputFile, "<li>"+strings.TrimSpace(trimmedListItem)+"</li>")
+		fmt.Fprintln(outputFile, "<li>"+strings.TrimSpace(parseInline(trimmedListItem))+"</li>")
 	} else if *inUnorderedList {
 		*inUnorderedList = false
 		fmt.Fprintln(outputFile, "</ul>")
-		processLine(line, inParagraph, inUnorderedList, inOrderedList, outputFile)
+		processLine(line, inParagraph, inUnorderedList, inOrderedList, inCodeBlock, outputFile)
 	} else if strings.TrimSpace(line) == "" {
 		if *inParagraph {
 			fmt.Fprint(outputFile, "</p>")
@@ -183,8 +201,54 @@ func processLine(line string, inParagraph *bool, inUnorderedList *bool, inOrdere
 			fmt.Fprint(outputFile, "<p>")
 			*inParagraph = true
 		}
-		fmt.Fprint(outputFile, line)
+		fmt.Fprint(outputFile, parseInline(line))
 	}
+}
+
+func parseInline(line string) string {
+	for strings.Contains(line, "`") {
+		line = strings.Replace(line, "`", "<code>", 1)
+		line = strings.Replace(line, "`", "</code>", 1)
+	}
+
+	for strings.Contains(line, "***") {
+		line = strings.Replace(line, "***", "<strong><em>", 1)
+		line = strings.Replace(line, "***", "</em></strong>", 1)
+	}
+
+	for strings.Contains(line, "**") {
+		line = strings.Replace(line, "**", "<strong>", 1)
+		line = strings.Replace(line, "**", "</strong>", 1)
+	}
+
+	for strings.Contains(line, "*") {
+		line = strings.Replace(line, "*", "<em>", 1)
+		line = strings.Replace(line, "*", "</em>", 1)
+	}
+
+	for strings.Contains(line, "![") {
+		linkTextStart := strings.Index(line, "![")
+		linkTextEnd := strings.Index(line, "](")
+		urlEnd := strings.Index(line, ")")
+
+		linkText := line[linkTextStart+2 : linkTextEnd]
+		linkUrl := line[linkTextEnd+2 : urlEnd]
+
+		line = line[:linkTextStart] + "<img src=\"" + linkUrl + "\" alt=\"" + linkText + "\">" + line[urlEnd+1:]
+	}
+
+	for strings.Contains(line, "](") {
+		linkTextStart := strings.Index(line, "[")
+		linkTextEnd := strings.Index(line, "](")
+		urlEnd := strings.Index(line, ")")
+
+		linkText := line[linkTextStart+1 : linkTextEnd]
+		linkUrl := line[linkTextEnd+2 : urlEnd]
+
+		line = line[:linkTextStart] + "<a href=\"" + linkUrl + "\">" + linkText + "</a>" + line[urlEnd+1:]
+	}
+
+	return line
 }
 
 func handleErr(err error) {
