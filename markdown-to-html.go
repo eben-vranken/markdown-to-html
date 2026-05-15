@@ -30,7 +30,7 @@ func main() {
 
 	handleErr(err)
 
-	if index_as_int < 0 || index_as_int > len(files) - 1 {
+	if index_as_int < 0 || index_as_int > len(files)-1 {
 		log.Fatal("Index out of bounds!")
 	}
 
@@ -49,10 +49,12 @@ func findFiles() []os.DirEntry {
 
 func generateHtml(fileLocation string) {
 	fmt.Println("Generating file:", fileLocation)
-	
+
 	f, err := os.Open(fileLocation)
 	r := bufio.NewReader(f)
 	handleErr(err)
+
+	inParagraph := false
 
 	for {
 		line, err := r.ReadString('\n')
@@ -60,7 +62,11 @@ func generateHtml(fileLocation string) {
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				if len(line) > 0 {
-					fmt.Println(parseLine(line))
+					processLine(line, &inParagraph)
+				}
+
+				if inParagraph {
+					fmt.Print("</p>")
 				}
 				break
 			}
@@ -68,7 +74,7 @@ func generateHtml(fileLocation string) {
 			break
 		}
 
-		fmt.Println(parseLine(line))
+		processLine(line, &inParagraph)
 	}
 }
 
@@ -84,7 +90,7 @@ func parseLine(line string) string {
 		return "<h5>" + strings.TrimSpace(content) + "</h5>"
 	}
 
-		if strings.HasPrefix(line, "####") {
+	if strings.HasPrefix(line, "####") {
 		content := strings.TrimPrefix(line, "####")
 		return "<h4>" + strings.TrimSpace(content) + "</h4>"
 	}
@@ -94,19 +100,38 @@ func parseLine(line string) string {
 		return "<h3>" + strings.TrimSpace(content) + "</h3>"
 	}
 
-		if strings.HasPrefix(line, "##") {
+	if strings.HasPrefix(line, "##") {
 		content := strings.TrimPrefix(line, "##")
 		return "<h2>" + strings.TrimSpace(content) + "</h2>"
 	}
 
-
-		if strings.HasPrefix(line, "#") {
+	if strings.HasPrefix(line, "#") {
 		content := strings.TrimPrefix(line, "#")
 		return "<h1>" + strings.TrimSpace(content) + "</h1>"
 	}
 
+	return line
+}
 
-	return ""
+func processLine(line string, inParagraph *bool) {
+	if strings.TrimSpace(line) == "" {
+		if *inParagraph {
+			fmt.Print("</p>")
+			*inParagraph = false
+		}
+	} else if strings.HasPrefix(line, "#") {
+		if *inParagraph {
+			fmt.Print("</p>")
+			*inParagraph = false
+		}
+		fmt.Println(parseLine(line))
+	} else {
+		if !*inParagraph {
+			fmt.Print("<p>")
+			*inParagraph = true
+		}
+		fmt.Print(line)
+	}
 }
 
 func handleErr(err error) {
