@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 func main() {
@@ -131,6 +132,23 @@ func processLine(line string, inParagraph *bool, inUnorderedList *bool, inOrdere
 		}
 
 		fmt.Fprintln(outputFile, "<hr>")
+	} else if len(strings.TrimSpace(line)) >= 2 && strings.TrimSpace(line)[0] == '>' {
+		quote := strings.TrimPrefix(strings.TrimSpace(line), ">")
+
+		fmt.Fprintln(outputFile, "<blockquote>"+strings.TrimSpace(quote)+"</blockquote>")
+	} else if len(strings.TrimSpace(line)) >= 2 && unicode.IsDigit(rune(strings.TrimSpace(line)[0])) && strings.TrimSpace(line)[1] == '.' {
+		if !*inOrderedList {
+			fmt.Fprintln(outputFile, "<ol>")
+			*inOrderedList = true
+		}
+
+		trimmedListItem := strings.Split(strings.TrimSpace(line), ".")[1]
+
+		fmt.Fprintln(outputFile, "<li>"+strings.TrimSpace(trimmedListItem)+"</li>")
+	} else if *inOrderedList {
+		*inOrderedList = false
+		fmt.Fprintln(outputFile, "</ol>")
+		processLine(line, inParagraph, inUnorderedList, inOrderedList, outputFile)
 	} else if strings.HasPrefix(strings.TrimSpace(line), "*") || strings.HasPrefix(strings.TrimSpace(line), "-") {
 		if !*inUnorderedList {
 			fmt.Fprintln(outputFile, "<ul>")
