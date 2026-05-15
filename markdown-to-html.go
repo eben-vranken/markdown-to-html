@@ -63,6 +63,8 @@ func generateHtml(fileLocation string) {
 	defer outputFile.Close()
 
 	inParagraph := false
+	inUnorderedList := false
+	inOrderedList := false
 
 	for {
 		line, err := r.ReadString('\n')
@@ -70,7 +72,7 @@ func generateHtml(fileLocation string) {
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				if len(line) > 0 {
-					processLine(line, &inParagraph, outputFile)
+					processLine(line, &inParagraph, &inUnorderedList, &inOrderedList, outputFile)
 				}
 
 				if inParagraph {
@@ -82,7 +84,7 @@ func generateHtml(fileLocation string) {
 			break
 		}
 
-		processLine(line, &inParagraph, outputFile)
+		processLine(line, &inParagraph, &inUnorderedList, &inOrderedList, outputFile)
 	}
 }
 
@@ -121,7 +123,7 @@ func parseLine(line string) string {
 	return line
 }
 
-func processLine(line string, inParagraph *bool, outputFile *os.File) {
+func processLine(line string, inParagraph *bool, inUnorderedList *bool, inOrderedList *bool, outputFile *os.File) {
 	if strings.TrimSpace(line) == "---" {
 		if *inParagraph {
 			fmt.Fprint(outputFile, "</p>")
@@ -129,6 +131,24 @@ func processLine(line string, inParagraph *bool, outputFile *os.File) {
 		}
 
 		fmt.Fprintln(outputFile, "<hr>")
+	} else if strings.HasPrefix(strings.TrimSpace(line), "*") || strings.HasPrefix(strings.TrimSpace(line), "-") {
+		if !*inUnorderedList {
+			fmt.Fprintln(outputFile, "<ul>")
+			*inUnorderedList = true
+		}
+
+		trimmedListItem := ""
+		if strings.HasPrefix(strings.TrimSpace(line), "*") {
+			trimmedListItem = strings.TrimPrefix(strings.TrimSpace(line), "*")
+		} else {
+			trimmedListItem = strings.TrimPrefix(strings.TrimSpace(line), "-")
+		}
+
+		fmt.Fprintln(outputFile, "<li>"+strings.TrimSpace(trimmedListItem)+"</li>")
+	} else if *inUnorderedList {
+		*inUnorderedList = false
+		fmt.Fprintln(outputFile, "</ul>")
+		processLine(line, inParagraph, inUnorderedList, inOrderedList, outputFile)
 	} else if strings.TrimSpace(line) == "" {
 		if *inParagraph {
 			fmt.Fprint(outputFile, "</p>")
