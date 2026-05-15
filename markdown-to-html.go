@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -32,7 +34,9 @@ func main() {
 		log.Fatal("Index out of bounds!")
 	}
 
-	generateHtml(files[index_as_int])
+	fmt.Println(files[index_as_int])
+
+	generateHtml("in/" + files[index_as_int].Name())
 }
 
 func findFiles() []os.DirEntry {
@@ -43,8 +47,66 @@ func findFiles() []os.DirEntry {
 	return entries
 }
 
-func generateHtml(file os.DirEntry) {
-	fmt.Println("Generating file:", file.Name())
+func generateHtml(fileLocation string) {
+	fmt.Println("Generating file:", fileLocation)
+	
+	f, err := os.Open(fileLocation)
+	r := bufio.NewReader(f)
+	handleErr(err)
+
+	for {
+		line, err := r.ReadString('\n')
+
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				if len(line) > 0 {
+					fmt.Println(parseLine(line))
+				}
+				break
+			}
+
+			break
+		}
+
+		fmt.Println(parseLine(line))
+	}
+}
+
+func parseLine(line string) string {
+	// Headings
+	if strings.HasPrefix(line, "######") {
+		content := strings.Split(line, "######")[1]
+		return "<h6>" + strings.TrimSpace(content) + "</h6>"
+	}
+
+	if strings.HasPrefix(line, "#####") {
+		content := strings.Split(line, "#####")[1]
+		return "<h5>" + strings.TrimSpace(content) + "</h5>"
+	}
+
+		if strings.HasPrefix(line, "####") {
+		content := strings.Split(line, "####")[1]
+		return "<h4>" + strings.TrimSpace(content) + "</h4>"
+	}
+
+	if strings.HasPrefix(line, "###") {
+		content := strings.Split(line, "###")[1]
+		return "<h3>" + strings.TrimSpace(content) + "</h3>"
+	}
+
+		if strings.HasPrefix(line, "##") {
+		content := strings.Split(line, "##")[1]
+		return "<h2>" + strings.TrimSpace(content) + "</h2>"
+	}
+
+
+		if strings.HasPrefix(line, "#") {
+		content := strings.Split(line, "#")[1]
+		return "<h1>" + strings.TrimSpace(content) + "</h1>"
+	}
+
+
+	return ""
 }
 
 func handleErr(err error) {
