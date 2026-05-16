@@ -55,13 +55,16 @@ func generateHtml(fileLocation string) {
 	handleErr(err)
 
 	outputFileLocation := strings.TrimPrefix(fileLocation, "in/")
-	outputFileFormat := strings.TrimSuffix(outputFileLocation, ".md") + ".html"
-	outputFile, err := os.Create("out/" + outputFileFormat)
-	fmt.Println("Generating file:", "out/"+outputFileFormat)
+	outputFileFormat := strings.TrimSuffix(outputFileLocation, ".md")
+	outputFile, err := os.Create("out/" + outputFileFormat + ".html")
 
 	handleErr(err)
 
 	defer outputFile.Close()
+
+	fmt.Println("Generating file:", "out/"+outputFileFormat+".html")
+
+	fmt.Fprintln(outputFile, "<!DOCTYPE html><html lang=\"en\"><head>    <meta charset=\"UTF-8\">    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">    <title>"+outputFileFormat+"</title></head><body>")
 
 	inParagraph := false
 	inUnorderedList := false
@@ -88,6 +91,8 @@ func generateHtml(fileLocation string) {
 
 		processLine(line, &inParagraph, &inUnorderedList, &inOrderedList, &inCodeBlock, outputFile)
 	}
+
+	fmt.Fprintln(outputFile, "</body></html>")
 }
 
 func parseLine(line string) string {
